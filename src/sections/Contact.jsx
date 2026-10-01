@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, CheckCircle2, AlertCircle, MessageCircle, Edit3 } from 'lucide-react';
-import SectionHeading from '../components/SectionHeading';
 import SocialLinks from '../components/SocialLinks';
 import Button from '../components/Button';
 import { personalInfo } from '../data/portfolioData';
 import { trackEvent } from '../utils/analytics';
+import {
+  createGmailComposeLink,
+  createContactGmailLink,
+  createContactWhatsAppMessage,
+  createWhatsAppLink,
+} from '../utils/contactLinks';
 
 /**
  * Contact Section Component
  * 
  * Features:
- * - Direct contact cards (Email, Phone, SPPU Location)
+ * - Direct contact cards (Gmail Compose in browser, Phone, SPPU Location)
  * - Accessible, secure contact form
  * - Comprehensive client-side validation (Email regex, length constraints, sanitization)
  * - Honeypot anti-spam protection (invisible field to catch automated bots)
@@ -19,12 +24,12 @@ import { trackEvent } from '../utils/analytics';
  *   2. Form validates inputs without page reload or loss of data
  *   3. Presents two direct, reliable delivery options: [ WhatsApp ] and [ Email ]
  *   4. WhatsApp opens https://wa.me/919511866805 with safely URI-encoded message
- *   5. Email opens mailto:nileshkhatik700@gmail.com with subject and body
+ *   5. Email opens Gmail Compose directly in a new browser tab with pre-filled To, Subject, and Body
  *   6. Retains all form inputs with an "Edit details" toggle
- * - No exposed credentials or third-party secret tokens
+ * - No exposed credentials, SMTP passwords, or third-party secret tokens
  * 
- * Time Complexity: O(1) input handling and validation
- * Space Complexity: O(1)
+ * Time Complexity: O(1) input handling and validation; O(n) message encoding
+ * Space Complexity: O(1) auxiliary space
  */
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -46,7 +51,7 @@ export default function Contact() {
   // Strict email regex validation
   const isValidEmail = (email) => {
     const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return re.test(String(email).toLowerCase());
+    return re.test(String(email).trim().toLowerCase());
   };
 
   const handleChange = (e) => {
@@ -84,6 +89,16 @@ export default function Contact() {
       newErrors.email = 'Please provide a valid email address.';
     }
 
+    // Subject validation
+    const trimmedSubject = formData.subject.trim();
+    if (!trimmedSubject) {
+      newErrors.subject = 'Please provide a subject.';
+    } else if (trimmedSubject.length < 2) {
+      newErrors.subject = 'Subject must be at least 2 characters long.';
+    } else if (trimmedSubject.length > 120) {
+      newErrors.subject = 'Subject cannot exceed 120 characters.';
+    }
+
     // Message validation
     const trimmedMsg = formData.message.trim();
     if (!trimmedMsg) {
@@ -113,7 +128,7 @@ export default function Contact() {
 
     // Validation passed: display direct dispatch options
     setShowDispatchOptions(true);
-    setFeedbackNotice('Your message has been validated! Select your preferred platform below to deliver it directly to Nilesh:');
+    setFeedbackNotice("Choose how you'd like to send your message.");
     trackEvent('contact_form_validated', {
       sender_name: formData.name.trim(),
       has_subject: Boolean(formData.subject.trim()),
@@ -121,49 +136,40 @@ export default function Contact() {
   };
 
   const createWhatsAppUrl = () => {
-    const lines = [
-      `Hi Nilesh,`,
-      ``,
-      `*Name:* ${formData.name.trim()}`,
-      `*Email:* ${formData.email.trim()}`,
-      formData.subject.trim() ? `*Subject:* ${formData.subject.trim()}` : null,
-      ``,
-      `*Message:*`,
-      `${formData.message.trim()}`
-    ].filter(line => line !== null).join('\n');
-
-    return `https://wa.me/${recipientPhone}?text=${encodeURIComponent(lines)}`;
+    const msg = createContactWhatsAppMessage({
+      name: formData.name,
+      email: formData.email,
+      subject: formData.subject,
+      message: formData.message,
+    });
+    return createWhatsAppLink({
+      phone: recipientPhone,
+      message: msg,
+    });
   };
 
   const createEmailUrl = () => {
-    const subject = formData.subject.trim()
-      ? `Portfolio Contact: ${formData.subject.trim()} (${formData.name.trim()})`
-      : `Portfolio Contact from ${formData.name.trim()}`;
-
-    const body = [
-      `Name: ${formData.name.trim()}`,
-      `Email: ${formData.email.trim()}`,
-      formData.subject.trim() ? `Subject: ${formData.subject.trim()}` : null,
-      ``,
-      `Message:`,
-      `${formData.message.trim()}`
-    ].filter(line => line !== null).join('\n');
-
-    return `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return createContactGmailLink({
+      name: formData.name,
+      email: formData.email,
+      subject: formData.subject,
+      message: formData.message,
+      recipient: recipientEmail,
+    });
   };
 
   const handleWhatsAppClick = () => {
     trackEvent('contact_dispatch_whatsapp', {
       sender_name: formData.name.trim(),
     });
-    setFeedbackNotice('Opening WhatsApp with your prepared message. Your form details are preserved below.');
+    setFeedbackNotice('Opening WhatsApp in a new tab with your pre-filled message. Your form details are preserved below.');
   };
 
   const handleEmailClick = () => {
     trackEvent('contact_dispatch_email', {
       sender_name: formData.name.trim(),
     });
-    setFeedbackNotice('Opening your default email app with your prepared message. Your form details are preserved below.');
+    setFeedbackNotice('Opening Gmail Compose in a new tab with your pre-filled message. Your form details are preserved below.');
   };
 
   const handleEditDetails = () => {
@@ -195,8 +201,12 @@ export default function Contact() {
               {/* Direct Info Cards */}
               <div className="space-y-4 mb-8">
                 <a
-                  href={`mailto:${personalInfo.email}`}
+                  href={createGmailComposeLink({ to: personalInfo.email, subject: 'Portfolio Contact' })}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center gap-3.5 p-4 rounded-xl bg-white border border-warm-border hover:border-brand-300 hover:shadow-card transition-all duration-200 group"
+                  aria-label="Contact me by email"
+                  title="Send email via Gmail"
                 >
                   <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-500 flex items-center justify-center shrink-0 group-hover:bg-brand-500 group-hover:text-white transition-colors duration-200">
                     <Mail className="w-5 h-5" aria-hidden="true" />
@@ -326,18 +336,27 @@ export default function Contact() {
               {/* Subject Field */}
               <div>
                 <label htmlFor="subject" className="block text-xs font-semibold text-ink-title uppercase tracking-wider mb-1.5">
-                  Subject / Topic (Optional)
+                  Subject <span className="text-brand-500">*</span>
                 </label>
                 <input
                   type="text"
                   id="subject"
                   name="subject"
-                  maxLength={100}
+                  required
+                  maxLength={120}
                   value={formData.subject}
                   onChange={handleChange}
                   placeholder="Internship opportunity, Project discussion, etc."
-                  className="w-full px-4 py-3 rounded-xl bg-warm-bg/50 border border-warm-border text-sm text-ink-title placeholder:text-ink-subtle focus:bg-white focus:border-brand-500 focus:outline-none transition-colors"
+                  className={`w-full px-4 py-3 rounded-xl bg-warm-bg/50 border text-sm text-ink-title placeholder:text-ink-subtle focus:bg-white focus:outline-none transition-colors ${
+                    errors.subject ? 'border-red-400 focus:border-red-500' : 'border-warm-border focus:border-brand-500'
+                  }`}
                 />
+                {errors.subject && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1" role="alert">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    {errors.subject}
+                  </p>
+                )}
               </div>
 
               {/* Message Field */}
@@ -412,7 +431,7 @@ export default function Contact() {
                       rel="noopener noreferrer"
                       onClick={handleWhatsAppClick}
                       className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full font-medium text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-subtle hover:shadow-card transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 active:scale-[0.98]"
-                      aria-label="Send message directly to Nilesh via WhatsApp"
+                      aria-label="Contact me on WhatsApp"
                     >
                       <MessageCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
                       <span>WhatsApp</span>
@@ -421,9 +440,12 @@ export default function Contact() {
                     {/* Email Option */}
                     <a
                       href={createEmailUrl()}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       onClick={handleEmailClick}
                       className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full font-medium text-sm text-white bg-brand-500 hover:bg-brand-600 shadow-subtle hover:shadow-card transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 active:scale-[0.98]"
-                      aria-label="Send message directly to Nilesh via default Email application"
+                      aria-label="Contact me by email"
+                      title="Open Gmail Compose"
                     >
                       <Mail className="w-4 h-4 shrink-0" aria-hidden="true" />
                       <span>Email</span>

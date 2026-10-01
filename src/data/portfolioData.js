@@ -1,4 +1,6 @@
 
+import { createGmailComposeLink } from '../utils/contactLinks';
+
 export const personalInfo = {
   fullName: "Khatik Nilesh Abasaheb",
   firstName: "Nilesh",
@@ -44,7 +46,10 @@ export const socialLinks = [
   {
     name: "Email",
     label: "nileshkhatik700@gmail.com",
-    url: "mailto:nileshkhatik700@gmail.com",
+    url: createGmailComposeLink({
+      to: "nileshkhatik700@gmail.com",
+      subject: "Portfolio Contact",
+    }),
     icon: "mail",
   },
 ];
@@ -218,6 +223,10 @@ export const internships = [
       "Contributing to development, debugging, testing, and application improvements.",
     ],
     technologies: ["Full-Stack Development", "Backend APIs", "Database", "Debugging & Testing"],
+    documents: {
+      offerLetter: null,
+      completionCertificate: null,
+    },
   },
   {
     id: "kanak-digifex",
@@ -232,6 +241,10 @@ export const internships = [
       "Supported client coordination, project tasks, and development workflow.",
     ],
     technologies: ["Client Solutions", "Frontend", "Backend APIs", "Testing & Coordination"],
+    documents: {
+      offerLetter: "/certificates/internships/kanak/kanak-Offer-later.jpeg",
+      completionCertificate: "/certificates/internships/kanak/completion-certificate.jpg",
+    },
   },
   {
     id: "sumago-infotech",
@@ -246,6 +259,10 @@ export const internships = [
       "Collaborated with team members using Git and GitHub for version control.",
     ],
     technologies: ["React.js", "Node.js", "Express.js", "MongoDB", "Bootstrap", "Git"],
+    documents: {
+      offerLetter: "/certificates/internships/sumago/offer-letter.png",
+      completionCertificate: "/certificates/internships/sumago/completion-certificate.png",
+    },
   },
 ];
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Github, Linkedin, Mail, Phone } from 'lucide-react';
-import { socialLinks, personalInfo } from '../data/portfolioData';
+import { socialLinks } from '../data/portfolioData';
 
 /**
  * Reusable Social & Contact Links Component
@@ -67,8 +67,8 @@ export default function SocialLinks({
           href={item.url}
           target={item.url.startsWith('http') ? '_blank' : undefined}
           rel={item.url.startsWith('http') ? 'noopener noreferrer' : undefined}
-          aria-label={`${item.name}: ${item.label}`}
-          title={`${item.name}: ${item.label}`}
+          aria-label={item.icon === 'mail' ? 'Contact me by email' : `${item.name}: ${item.label}`}
+          title={item.icon === 'mail' ? 'Send email via Gmail' : `${item.name}: ${item.label}`}
           className="w-10 h-10 rounded-full bg-white border border-warm-border hover:border-brand-300 hover:bg-brand-50 text-ink-body hover:text-brand-500 flex items-center justify-center transition-all duration-200 hover:-translate-y-0.5 shadow-sm"
         >
           {getIcon(item.icon)}
